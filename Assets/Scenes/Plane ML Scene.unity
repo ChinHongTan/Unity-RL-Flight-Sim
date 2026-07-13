@@ -175,6 +175,22 @@ PrefabInstance:
       propertyPath: m_Model
       value: 
       objectReference: {fileID: 5022602860645237092, guid: 57e8414ffd9f94ec491f3f466f0d679b, type: 3}
+    - target: {fileID: 8447877352796164651, guid: 196d948dc72724cd89a1ea433dda8199, type: 3}
+      propertyPath: m_Materials.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8447877352796164651, guid: 196d948dc72724cd89a1ea433dda8199, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 0a3d5cf0c15e01b41b2082cbd7ffee71, type: 2}
+    - target: {fileID: 8447877352796164651, guid: 196d948dc72724cd89a1ea433dda8199, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 0a3d5cf0c15e01b41b2082cbd7ffee71, type: 2}
+    - target: {fileID: 8447877352796164651, guid: 196d948dc72724cd89a1ea433dda8199, type: 3}
+      propertyPath: 'm_Materials.Array.data[2]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 0a3d5cf0c15e01b41b2082cbd7ffee71, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -315,8 +331,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1272181670}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalRotation: {x: -0.16414002, y: -0.23684739, z: 0.040242422, w: -0.956735}
+  m_LocalPosition: {x: 17.922806, y: 1.0546448, z: -74.64258}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -334,7 +350,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15533fe5a09224f189a98162fc86a1e6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraFollow
-  target: {fileID: 0}
+  target: {fileID: 1365539228}
   offset: {x: 0, y: 5, z: -12}
   distance: 12
   height: 5
@@ -383,6 +399,11 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!4 &1365539228 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7307567941365443756, guid: 196d948dc72724cd89a1ea433dda8199, type: 3}
+  m_PrefabInstance: {fileID: 720713088}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &2117726159
 GameObject:
   m_ObjectHideFlags: 0

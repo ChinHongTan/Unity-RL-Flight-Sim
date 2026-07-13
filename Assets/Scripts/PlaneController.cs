@@ -22,7 +22,7 @@ public class PlaneController : MonoBehaviour
     public float brakeStrength = 15f;
     public float rollingFriction = 1.5f;  // slow roll-to-a-stop when engine is off
 
-    [Header("Inputs (keyboard by default, or set these from an RL agent)")]
+    [Header("Inputs (keyboard by default)")]
     public bool useKeyboardInput = true;
     [HideInInspector] public float pitchInput;    // -1..1
     [HideInInspector] public float turnInput;     // -1..1
