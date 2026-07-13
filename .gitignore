@@ -109,6 +109,7 @@ InitTestScene*.unity*
 .idea/
 .vscode/
 .github/instructions/
+.codacy/
 
 Assets/Alstra Infinite/
 Assets/Alstra Infinite.meta
