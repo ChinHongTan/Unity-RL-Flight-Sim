@@ -59,8 +59,8 @@ tensorboard --logdir results
 - Staged training: stage 1 checkpoint → `--initialize-from` → stage 2
 
 ## Results
-![stage_1](docs/Stage 1.png)
-![stage_2](docs/Stage 2.png)
+![stage_1](docs/Stage1.png)
+![stage_2](docs/Stage2.png)
 
 
 ## Roadmap
