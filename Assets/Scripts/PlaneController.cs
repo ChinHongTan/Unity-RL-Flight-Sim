@@ -1,5 +1,4 @@
 using System.Collections;
-using Unity.MLAgents;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -27,11 +26,13 @@ public class PlaneController : MonoBehaviour
     [HideInInspector] public float pitchInput;    // -1..1
     [HideInInspector] public float turnInput;     // -1..1
     [HideInInspector] public float throttleInput; // -1..1 (rate of throttle change)
-    [HideInInspector] public bool brakeInput;
+    [HideInInspector] public bool touchedDown;
+    [HideInInspector] public bool touchdownOnRunway;
+    [HideInInspector] public float touchdownImpact;
 
     Vector3 startPos;
     float startYaw;
-    bool grounded;
+    public bool grounded;
 
     public GameObject explosionPrefab;
     public float respawnDelay = 2f;
@@ -69,15 +70,19 @@ public class PlaneController : MonoBehaviour
         throttleInput = 0f;
         if (Input.GetKey(KeyCode.LeftShift)) throttleInput += 1f;
         if (Input.GetKey(KeyCode.LeftControl)) throttleInput -= 1f;
-
-        brakeInput = Input.GetKey(KeyCode.LeftControl);
     }
 
     void CheckGrounded()
     {
+        // look ahead one frame of fall so fast descents can't skip the window
+        float lookahead = Mathf.Max(0.05f, -rb.linearVelocity.y * Time.fixedDeltaTime);
         Vector3 origin = transform.position + Vector3.up * 1.0f;
-        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 1.6f, groundMask, QueryTriggerInteraction.Ignore) && !hit.collider.transform.IsChildOf(transform))
+
+        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 1.0f + lookahead,
+                            groundMask, QueryTriggerInteraction.Ignore)
+            && !hit.collider.transform.IsChildOf(transform))
         {
+            if (!grounded) HandleTouchdown(hit);   // rising edge = the moment of touchdown
             grounded = true;
             groundNormal = hit.normal;
         }
@@ -85,6 +90,32 @@ public class PlaneController : MonoBehaviour
         {
             grounded = false;
             groundNormal = Vector3.up;
+        }
+        Debug.DrawRay(origin, Vector3.down * (1.0f + lookahead), grounded ? Color.red : Color.yellow);
+    }
+
+    void HandleTouchdown(RaycastHit hit)
+    {
+        if (crashed || Time.time < spawnGraceUntil) return;
+
+        float sinkSpeed = Mathf.Max(0f, -rb.linearVelocity.y);  // last frame's applied velocity
+        float upright   = Vector3.Dot(transform.up, Vector3.up);
+        bool  noseFirst = transform.forward.y < -0.5f;           // same -30° the old contact check implied
+
+        bool safe = upright > 0.7f && sinkSpeed < 8f && !noseFirst;
+        if (safe)
+        {
+            if (!touchedDown)
+            {
+                touchedDown = true;
+                touchdownOnRunway = hit.collider.CompareTag("Runway");
+                touchdownImpact = sinkSpeed;
+            }
+        }
+        else
+        {
+            if (useKeyboardInput) StartCoroutine(CrashSequence(hit.point));
+            else agentCrashed = true;
         }
     }
 
@@ -121,7 +152,8 @@ public class PlaneController : MonoBehaviour
         currentSpeed = Mathf.Max(currentSpeed, 0f);
 
         // --- Throttle and engine ---
-        throttle = Mathf.Clamp01(throttle + throttleInput * throttleAccel * Time.deltaTime);
+        float minThrottle = grounded ? -1f : 0f;
+        throttle = Mathf.Clamp(throttle + throttleInput * throttleAccel * Time.deltaTime, minThrottle, 1.0f);
         currentSpeed += (throttle * enginePower - drag * currentSpeed) * Time.deltaTime;
 
         // --- Ground handling ---
@@ -129,10 +161,12 @@ public class PlaneController : MonoBehaviour
         {
             pitch = Mathf.Clamp(pitch, -15f, 2f); // -15 = allowed rotation for takeoff, 2 = level
 
-            if (brakeInput)
-                currentSpeed -= brakeStrength * Time.deltaTime;          // brakes (applied once now)
+            float brakeDecel = throttle < 0f ? -throttle * brakeStrength : 0f;
+
+            if (brakeDecel > 0f)
+                currentSpeed -= brakeDecel * Time.deltaTime;
             else if (throttle <= 0.01f)
-                currentSpeed -= rollingFriction * Time.deltaTime;        // engine off: roll to a stop
+                currentSpeed -= rollingFriction * Time.deltaTime;
 
             currentSpeed = Mathf.Max(currentSpeed, 0f);
         }
@@ -170,7 +204,16 @@ public class PlaneController : MonoBehaviour
         bool noseFirst = Vector3.Dot(transform.forward, -contact.normal) > 0.5f;
 
         bool safeLanding = upright > 0.7f && impactSpeed < 8f && !noseFirst;
-        if (safeLanding) return;
+        if (safeLanding)
+        {
+            if (!touchedDown)
+            {
+                touchedDown = true;
+                touchdownOnRunway = collision.gameObject.CompareTag("Runway");
+                touchdownImpact = impactSpeed;
+            }
+            return;
+        }
 
         if (useKeyboardInput)
         {
@@ -217,23 +260,27 @@ public class PlaneController : MonoBehaviour
         spawnGraceUntil = Time.time + 0.5f;
         throttle = 0f;
 
-        pitchInput = 0f; turnInput = 0f; throttleInput = 0f; brakeInput = false;
+        pitchInput = 0f; turnInput = 0f; throttleInput = 0f;
     }
 
-    public void RespawnAt(Vector3 position, bool startGrounded)
+    public void RespawnAt(Vector3 position, bool startGrounded, float yawDeg)
     {
         pitch = 0f; roll = 0f; yaw = 0f;
         rb.transform.localPosition = position;
-        rb.rotation = Quaternion.Euler(0f, 0f, 0f);
+        rb.rotation = Quaternion.Euler(0f, yawDeg, 0f);
+        this.yaw = yawDeg;
         rb.linearVelocity = Vector3.zero;
         spawnGraceUntil = Time.time + 0.5f;
-        pitchInput = 0f; turnInput = 0f; throttleInput = 0f; brakeInput = false;
+        pitchInput = 0f; turnInput = 0f; throttleInput = 0f;
         agentCrashed = false;
         currentSink = 0f;
         crashed = false;
         this.grounded = startGrounded;
         currentSpeed = startGrounded ? 0f : 40f;
         throttle = startGrounded ? 0f : 0.7f;
+        touchedDown = false;
+        touchdownOnRunway = false;
+        touchdownImpact = 0f;
     }
 
     public void AgentControl(float pitchInput, float turnInput, float throttleInput)
