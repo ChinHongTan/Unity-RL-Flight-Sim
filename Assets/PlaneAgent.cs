@@ -19,7 +19,6 @@ public class PlaneAgent : Agent
     float allowedRadius;
 
     // Status flags
-    bool firstTargetOfEpisode;
     bool firstEpisode;
     bool touchdownHandled;
     bool wasGrounded;
@@ -96,7 +95,6 @@ public class PlaneAgent : Agent
 
             // Set the first takeoff target
             Target.position = planner.DeparturePoint(100f);
-            firstTargetOfEpisode = false;
         }
         else
         {
@@ -121,7 +119,6 @@ public class PlaneAgent : Agent
             {
                 phase = Phase.Cruise;
                 planeController.RespawnAt(new Vector3(0f, 30f, 0f), false, 0);
-                firstTargetOfEpisode = true;
                 SpawnNewTarget();
             }                              
 
@@ -192,19 +189,9 @@ public class PlaneAgent : Agent
 
         float angleRange = Academy.Instance.EnvironmentParameters.GetWithDefault("angle_range", 180f);
         float heightRange = Academy.Instance.EnvironmentParameters.GetWithDefault("height_range", 60f);
-        float angle, heightOffset;
 
-        if (phase == Phase.Takeoff && firstTargetOfEpisode)
-        {
-            // takeoff target
-            angle = Random.Range(-30f, 30f) * Mathf.Deg2Rad;
-            heightOffset = Random.Range(15f, 30f);
-        }
-        else
-        {
-            angle = Random.Range(-angleRange, angleRange) * Mathf.Deg2Rad;
-            heightOffset = Random.Range(-heightRange, heightRange);
-        }
+        float angle = Random.Range(-angleRange, angleRange) * Mathf.Deg2Rad;
+        float heightOffset = Random.Range(-heightRange, heightRange);
 
         float dist = Random.Range(minDist, maxDist);
 
@@ -212,8 +199,7 @@ public class PlaneAgent : Agent
 
         p.y = Mathf.Clamp(p.y, 10f, 90f); // Set min and max height
         Target.localPosition = p;
-        
-        firstTargetOfEpisode = false;
+
         previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
 
         // Reset radius
