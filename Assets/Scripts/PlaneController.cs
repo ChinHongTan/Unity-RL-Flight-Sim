@@ -5,21 +5,30 @@ using UnityEngine;
 public class PlaneController : MonoBehaviour
 {
     private Rigidbody rb;
+    public GameObject explosionPrefab;
+    Renderer[] renderers;
+
+    // Controls
     float pitch, yaw, roll;
-    public float pitchSpeed = 60f;
-    public float bankSpeed = 2f;
-    public float gravity = 10f;
-    public float maxBank = 60f;
-    public float turnRate = 1.5f;
-    public float currentSpeed;
-    public float stallSpeed = 30f;
-    public float throttleAccel = 1f;      // was 0.5 — full throttle in 1s instead of 2s
-    public float enginePower = 6f;
-    public float drag = 0.1f;
     public float throttle = 0f;
-    public float stallPitchMultiplier = 15f;
-    public float brakeStrength = 15f;
-    public float rollingFriction = 1.5f;  // slow roll-to-a-stop when engine is off
+    public float currentSpeed;
+    float currentSink;
+
+    // Physics
+    readonly float pitchSpeed = 60f;
+    readonly float bankSpeed = 2f;
+    readonly float gravity = 10f;
+    readonly float maxBank = 60f;
+    readonly float turnRate = 1.5f;
+    [HideInInspector] public readonly float stallSpeed = 30f;
+    readonly float throttleAccel = 1f;      // was 0.5 — full throttle in 1s instead of 2s
+    readonly float enginePower = 6f;
+    readonly float drag = 0.1f;
+    readonly float stallPitchMultiplier = 15f;
+    readonly float brakeStrength = 15f;
+    readonly float rollingFriction = 1.5f;  // slow roll-to-a-stop when engine is off
+    readonly float respawnDelay = 2f;
+
 
     [Header("Inputs (keyboard by default)")]
     public bool useKeyboardInput = true;
@@ -29,24 +38,16 @@ public class PlaneController : MonoBehaviour
     [HideInInspector] public bool touchedDown;
     [HideInInspector] public bool touchdownOnRunway;
     [HideInInspector] public float touchdownImpact;
+    [HideInInspector] public bool grounded;
+    [HideInInspector] public bool agentCrashed;
+
+    [SerializeField] LayerMask groundMask = ~0;
 
     Vector3 startPos;
     float startYaw;
-    public bool grounded;
-
-    public GameObject explosionPrefab;
-    public float respawnDelay = 2f;
     bool crashed;
-    public bool agentCrashed;
-    Renderer[] renderers;
-    [SerializeField] LayerMask groundMask = ~0;
-
     float spawnGraceUntil;
-
     Vector3 groundNormal = Vector3.up;
-
-    float currentSink;
-
 
     void Start()
     {
@@ -215,10 +216,7 @@ public class PlaneController : MonoBehaviour
             return;
         }
 
-        if (useKeyboardInput)
-        {
-            StartCoroutine(CrashSequence(contact.point));
-        }
+        if (useKeyboardInput) StartCoroutine(CrashSequence(contact.point));
         else
         {
             agentCrashed = true;
@@ -268,14 +266,14 @@ public class PlaneController : MonoBehaviour
         pitch = 0f; roll = 0f; yaw = 0f;
         rb.transform.localPosition = position;
         rb.rotation = Quaternion.Euler(0f, yawDeg, 0f);
-        this.yaw = yawDeg;
+        yaw = yawDeg;
         rb.linearVelocity = Vector3.zero;
         spawnGraceUntil = Time.time + 0.5f;
         pitchInput = 0f; turnInput = 0f; throttleInput = 0f;
         agentCrashed = false;
         currentSink = 0f;
         crashed = false;
-        this.grounded = startGrounded;
+        grounded = startGrounded;
         currentSpeed = startGrounded ? 0f : Random.Range(20f, 55f);
         throttle = startGrounded ? 0f : Random.Range(0.2f, 1f);
         touchedDown = false;

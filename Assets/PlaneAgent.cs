@@ -105,31 +105,27 @@ public class PlaneAgent : Agent
             float landingProb = Academy.Instance.EnvironmentParameters.GetWithDefault("landing_prob", 0.4f);
             
             float r = Random.value;
-            if (r < groundedProb) phase = Phase.Takeoff;
-            else if (r < groundedProb + landingProb) phase = Phase.Landing;
-            else phase = Phase.Cruise;
-
-            if (phase == Phase.Takeoff)
+            if (r < groundedProb)
             {
+                phase = Phase.Takeoff;
                 planeController.RespawnAt(new Vector3(0f, 0f, 0f), true, 0);
-            }
-            else if (phase == Phase.Landing)
-            {
-                SpawnForLanding();
-            }
-            else
-                planeController.RespawnAt(new Vector3(0f, 30f, 0f), false, 0);
-
-            firstTargetOfEpisode = true;
-            wasGrounded = phase == Phase.Takeoff;
-
-            if (phase == Phase.Landing) Target.position = approach[0];
-            else if (phase == Phase.Takeoff)
-            {
                 Target.position = planner.DeparturePoint(100f);
-                firstTargetOfEpisode = false;
             }
-            else SpawnNewTarget();
+            else if (r < groundedProb + landingProb)
+            {
+                phase = Phase.Landing;
+                SpawnForLanding();
+                Target.position = approach[0];
+            }
+            else 
+            {
+                phase = Phase.Cruise;
+                planeController.RespawnAt(new Vector3(0f, 30f, 0f), false, 0);
+                firstTargetOfEpisode = true;
+                SpawnNewTarget();
+            }                              
+
+            wasGrounded = phase == Phase.Takeoff;
         }
 
         previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
@@ -212,11 +208,9 @@ public class PlaneAgent : Agent
 
         float dist = Random.Range(minDist, maxDist);
 
-        Vector3 p = transform.localPosition + new Vector3(Mathf.Sin(angle) * dist, heightOffset, Mathf.Cos(angle) * dist);
+        Vector3 p = transform.localPosition + new Vector3(Mathf.Sin(angle) * dist, heightOffset, Mathf.Cos(angle) * dist); // Target position
 
-
-
-        p.y = Mathf.Clamp(p.y, 10f, 90f);
+        p.y = Mathf.Clamp(p.y, 10f, 90f); // Set min and max height
         Target.localPosition = p;
         
         firstTargetOfEpisode = false;
@@ -254,7 +248,7 @@ public class PlaneAgent : Agent
         outcomeRecorded = true;
     }
 
-    List<Vector3> approach = new List<Vector3>();
+    List<Vector3> approach = new();
 
     void SpawnForLanding()
     {
@@ -349,13 +343,13 @@ public class PlaneAgent : Agent
             RecordOutcome(success: true);
             LogEnd("STOPPED - SUCCESS");
             EndEpisode();
-
             return true;
         }
         // Waypoint
         else if (distanceToTarget < (patternFix ? 10f : 5f))
         {
             if (phase == Phase.Landing)
+            // Landing waypoints
             {
                 if (waypointIndex < approach.Count - 1)
                 {
@@ -372,6 +366,7 @@ public class PlaneAgent : Agent
                 }
             }
             else
+            // Cruise waypoints
             {
                 AddReward(1.0f);
                 RecordOutcome(success: true);
@@ -453,7 +448,7 @@ public class PlaneAgent : Agent
     {
         if (phase == Phase.Takeoff)
         {
-            AddReward(-0.005f * Mathf.Clamp01(offCenter / 5f));
+            AddReward(-0.005f * Mathf.Clamp01(offCenter / 5f)); // Keep center
             AddReward(-0.0002f); // Parking causes negative reward
             if (!hitSpeed10 && planeController.currentSpeed >= 10)
             {
@@ -490,8 +485,8 @@ public class PlaneAgent : Agent
         Vector3 toTarget = (Target.position - transform.position).normalized;
         if (!touchdownHandled)
         {
-            AddReward(0.001f * Vector3.Dot(rBody.linearVelocity.normalized, toTarget.normalized));
-            AddReward(0.01f * (previousDistance - distanceToTarget));
+            AddReward(0.001f * Vector3.Dot(rBody.linearVelocity.normalized, toTarget.normalized)); // Keep velocity pointing towards target
+            AddReward(0.01f * (previousDistance - distanceToTarget)); // 0.01 × (starting distance − final distance) reward given
         }
     }
 
