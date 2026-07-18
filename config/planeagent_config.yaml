@@ -20,7 +20,7 @@ behaviors:
       extrinsic:
         gamma: 0.99
         strength: 1.0
-    max_steps: 3000000
+    max_steps: 6000000
     time_horizon: 128
     summary_freq: 5000
     keep_checkpoints: 10
@@ -66,14 +66,14 @@ environment_parameters:
         completion_criteria:
           <<: *crit
           threshold: 0.2
-        value: 15
+        value: 30
       - name: MediumCone
         completion_criteria:
           <<: *crit
           threshold: 0.4
-        value: 30
+        value: 60
       - name: WideCone
-        value: 45
+        value: 120
   spawn_dist:
     curriculum:
       - name: ShortSpawn
@@ -88,3 +88,17 @@ environment_parameters:
         value: 160
       - name: LongSpawn
         value: 200
+  loop_prob:
+    curriculum:
+      - name: Isolated
+        completion_criteria:
+          <<: *crit
+          threshold: 0.3
+        value: 0.2
+      - name: Mixed
+        completion_criteria:
+          <<: *crit
+          threshold: 0.5
+        value: 0.5
+      - name: Chained
+        value: 0.8

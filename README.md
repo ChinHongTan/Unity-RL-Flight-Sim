@@ -4,7 +4,7 @@ A Unity ML-Agents flight sim where a PPO agent learns to take off
 from a runway and chase waypoints. Trained in stages with curriculum
 learning and warm-started checkpoints.
 
-![demo](docs/demo.gif)
+![demo](docs/demo.mp4)
 
 ## Highlights
 - Takes off from a standstill, climbs out, chains 6+ waypoints per episode

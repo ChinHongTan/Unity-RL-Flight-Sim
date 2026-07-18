@@ -1,0 +1,267 @@
+default_settings: null
+behaviors:
+  PlaneAgent:
+    trainer_type: ppo
+    hyperparameters:
+      batch_size: 512
+      buffer_size: 10240
+      learning_rate: 0.0003
+      beta: 0.01
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      shared_critic: false
+      learning_rate_schedule: linear
+      beta_schedule: constant
+      epsilon_schedule: linear
+    checkpoint_interval: 500000
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 2
+      vis_encode_type: simple
+      memory: null
+      goal_conditioning_type: hyper
+      deterministic: false
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+        network_settings:
+          normalize: false
+          hidden_units: 128
+          num_layers: 2
+          vis_encode_type: simple
+          memory: null
+          goal_conditioning_type: hyper
+          deterministic: false
+    init_path: results/PlaneAgent-6/PlaneAgent/checkpoint.pt
+    keep_checkpoints: 10
+    even_checkpoints: false
+    max_steps: 6000000
+    time_horizon: 128
+    summary_freq: 5000
+    threaded: false
+    self_play: null
+    behavioral_cloning: null
+env_settings:
+  env_path: null
+  env_args: null
+  base_port: 5005
+  num_envs: 1
+  num_areas: 1
+  timeout_wait: 60
+  seed: -1
+  max_lifetime_restarts: 10
+  restarts_rate_limit_n: 1
+  restarts_rate_limit_period_s: 60
+engine_settings:
+  width: 84
+  height: 84
+  quality_level: 5
+  time_scale: 20
+  target_frame_rate: -1
+  capture_frame_rate: 60
+  no_graphics: false
+  no_graphics_monitor: false
+environment_parameters:
+  angle_range:
+    curriculum:
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6205
+          value: 30.0
+      name: ForwardCone
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.1
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6206
+          value: 90.0
+      name: WideCone
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.3
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6207
+          value: 135.0
+      name: VeryWideCone
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.5
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6208
+          value: 180.0
+      name: FullCircle
+      completion_criteria: null
+  height_range:
+    curriculum:
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6209
+          value: 15.0
+      name: Flat
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.15
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6210
+          value: 30.0
+      name: SmallClimbs
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.35
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6211
+          value: 60.0
+      name: FullVertical
+      completion_criteria: null
+  spawn_cone:
+    curriculum:
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6212
+          value: 30
+      name: NarrowCone
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.2
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6213
+          value: 60
+      name: MediumCone
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.4
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6214
+          value: 120
+      name: WideCone
+      completion_criteria: null
+  spawn_dist:
+    curriculum:
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6215
+          value: 120
+      name: ShortSpawn
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.25
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6216
+          value: 160
+      name: MediumSpawn
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.45
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6217
+          value: 200
+      name: LongSpawn
+      completion_criteria: null
+  loop_prob:
+    curriculum:
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6218
+          value: 0.2
+      name: Isolated
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.3
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6219
+          value: 0.5
+      name: Mixed
+      completion_criteria:
+        behavior: PlaneAgent
+        measure: progress
+        min_lesson_length: 0
+        signal_smoothing: true
+        threshold: 0.5
+        require_reset: true
+    - value:
+        sampler_type: constant
+        sampler_parameters:
+          seed: 6220
+          value: 0.8
+      name: Chained
+      completion_criteria: null
+checkpoint_settings:
+  run_id: PlaneAgent-7
+  initialize_from: PlaneAgent-6
+  load_model: false
+  resume: false
+  force: false
+  train_model: false
+  inference: false
+  results_dir: results
+torch_settings:
+  device: null
+debug: false

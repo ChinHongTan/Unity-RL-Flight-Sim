@@ -562,7 +562,7 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 1500
+  MaxStep: 10000
   runway: {fileID: 1213499146290081347}
   Target: {fileID: 3830910629912266948}
 --- !u!114 &6851175145069471778

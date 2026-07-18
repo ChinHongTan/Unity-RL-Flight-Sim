@@ -1,0 +1,98 @@
+{
+    "angle_range": {
+        "lesson_num": 3
+    },
+    "height_range": {
+        "lesson_num": 2
+    },
+    "spawn_cone": {
+        "lesson_num": 2
+    },
+    "spawn_dist": {
+        "lesson_num": 2
+    },
+    "loop_prob": {
+        "lesson_num": 2
+    },
+    "PlaneAgent": {
+        "checkpoints": [
+            {
+                "steps": 499984,
+                "file_path": "results/PlaneAgent-5/PlaneAgent/PlaneAgent-499984.onnx",
+                "reward": 16.124326982450757,
+                "creation_time": 1784298026.164895,
+                "auxillary_file_paths": [
+                    "results/PlaneAgent-5/PlaneAgent/PlaneAgent-499984.pt"
+                ]
+            },
+            {
+                "steps": 999895,
+                "file_path": "results/PlaneAgent-5/PlaneAgent/PlaneAgent-999895.onnx",
+                "reward": 13.939195247160065,
+                "creation_time": 1784298406.015417,
+                "auxillary_file_paths": [
+                    "results/PlaneAgent-5/PlaneAgent/PlaneAgent-999895.pt"
+                ]
+            },
+            {
+                "steps": 1499942,
+                "file_path": "results/PlaneAgent-5/PlaneAgent/PlaneAgent-1499942.onnx",
+                "reward": 28.136346220970154,
+                "creation_time": 1784298786.315635,
+                "auxillary_file_paths": [
+                    "results/PlaneAgent-5/PlaneAgent/PlaneAgent-1499942.pt"
+                ]
+            },
+            {
+                "steps": 1999916,
+                "file_path": "results/PlaneAgent-5/PlaneAgent/PlaneAgent-1999916.onnx",
+                "reward": 9.083415009436154,
+                "creation_time": 1784299162.2874691,
+                "auxillary_file_paths": [
+                    "results/PlaneAgent-5/PlaneAgent/PlaneAgent-1999916.pt"
+                ]
+            },
+            {
+                "steps": 2499892,
+                "file_path": "results/PlaneAgent-5/PlaneAgent/PlaneAgent-2499892.onnx",
+                "reward": 10.489197999238968,
+                "creation_time": 1784299538.265603,
+                "auxillary_file_paths": [
+                    "results/PlaneAgent-5/PlaneAgent/PlaneAgent-2499892.pt"
+                ]
+            },
+            {
+                "steps": 2999888,
+                "file_path": "results/PlaneAgent-5/PlaneAgent/PlaneAgent-2999888.onnx",
+                "reward": 21.884088218212128,
+                "creation_time": 1784299912.848344,
+                "auxillary_file_paths": [
+                    "results/PlaneAgent-5/PlaneAgent/PlaneAgent-2999888.pt"
+                ]
+            },
+            {
+                "steps": 3000016,
+                "file_path": "results/PlaneAgent-5/PlaneAgent/PlaneAgent-3000016.onnx",
+                "reward": 21.884088218212128,
+                "creation_time": 1784299912.872064,
+                "auxillary_file_paths": [
+                    "results/PlaneAgent-5/PlaneAgent/PlaneAgent-3000016.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 3000016,
+            "file_path": "results/PlaneAgent-5/PlaneAgent.onnx",
+            "reward": 21.884088218212128,
+            "creation_time": 1784299912.872064,
+            "auxillary_file_paths": [
+                "results/PlaneAgent-5/PlaneAgent/PlaneAgent-3000016.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.2.0.dev0",
+        "torch_version": "2.8.0"
+    }
+}

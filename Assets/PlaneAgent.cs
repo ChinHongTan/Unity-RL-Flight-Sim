@@ -2,6 +2,7 @@ using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
+using System.Collections.Generic;
 
 public class PlaneAgent : Agent
 {
@@ -22,10 +23,14 @@ public class PlaneAgent : Agent
     bool airborneRewardGiven;
     bool altitudeRewardGiven;
     bool outcomeRecorded;
+    bool missionRecorded;
+    bool wasChainedEpisode;
     int decisionCount;
     bool hitSpeed10;
     bool hitSpeed20;
     bool hitSpeed30;
+    bool isChainedEpisode;
+    float allowedRadius;
     float slope = Mathf.Tan(6f * Mathf.Deg2Rad);
     public override void Initialize()
     {
@@ -41,11 +46,18 @@ public class PlaneAgent : Agent
     public override void OnEpisodeBegin()
     {
         if (!firstEpisode)
+        {
             Academy.Instance.StatsRecorder.Add("Custom/TargetsPerEpisode", targetsThisEpisode);
+
+            if (wasChainedEpisode && !missionRecorded)
+                Academy.Instance.StatsRecorder.Add("Custom/Mission/Completed", 0f);
+        }
         if (!outcomeRecorded)
             RecordOutcome(timeout: true);
 
         outcomeRecorded = false;
+        missionRecorded = false;
+
         firstEpisode = false;
         targetsThisEpisode = 0;
         touchdownHandled = false;
@@ -56,37 +68,60 @@ public class PlaneAgent : Agent
         hitSpeed20 = false;
         hitSpeed30 = false;
         decisionCount = 0;
-        
-        float groundedProb = Academy.Instance.EnvironmentParameters.GetWithDefault("grounded_prob", 0.3f);
-        float landingProb = Academy.Instance.EnvironmentParameters.GetWithDefault("landing_prob", 0.4f);
-        
-        float r = Random.value;
-        takeoff = r < groundedProb;
-        landing = !takeoff && r < groundedProb + landingProb;
 
-        if (takeoff)
+        // Curriculum wrapper
+        float loopProb = Academy.Instance.EnvironmentParameters.GetWithDefault("loop_prob", 0.8f);
+        isChainedEpisode = Random.value < loopProb;
+        wasChainedEpisode = isChainedEpisode;
+
+        if (isChainedEpisode)
+        {
+            // Enforce continuous sequence
+            takeoff = true;
+            landing = false;
+
+            // Always spawn on runway
             planeController.RespawnAt(new Vector3(0f, 0f, 0f), true, 0);
-        else if (landing)
-            SpawnForLanding();
-        else
-            planeController.RespawnAt(new Vector3(0f, 30f, 0f), false, 0);
+            wasGrounded = takeoff;
 
-        firstTargetOfEpisode = true;
-        wasGrounded = takeoff;
-
-        if (landing)
-        {
-            Target.position = ApproachPoint(80f);
-            previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
-        }
-        else if (takeoff)
-        {
+            // Set the first takeoff target
             Target.position = DeparturePoint(100f);
-            previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
             firstTargetOfEpisode = false;
         }
         else
-            SpawnNewTarget();
+        {
+            float groundedProb = Academy.Instance.EnvironmentParameters.GetWithDefault("grounded_prob", 0.3f);
+            float landingProb = Academy.Instance.EnvironmentParameters.GetWithDefault("landing_prob", 0.4f);
+            
+            float r = Random.value;
+            takeoff = r < groundedProb;
+            landing = !takeoff && r < groundedProb + landingProb;
+
+            if (takeoff)
+            {
+                planeController.RespawnAt(new Vector3(0f, 0f, 0f), true, 0);
+            }
+            else if (landing)
+            {
+                SpawnForLanding();
+            }
+            else
+                planeController.RespawnAt(new Vector3(0f, 30f, 0f), false, 0);
+
+            firstTargetOfEpisode = true;
+            wasGrounded = takeoff;
+
+            if (landing) Target.position = approach[0];
+            else if (takeoff)
+            {
+                Target.position = DeparturePoint(100f);
+                firstTargetOfEpisode = false;
+            }
+            else SpawnNewTarget();
+        }
+
+        previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
+        allowedRadius = previousDistance + 60f;
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -126,8 +161,10 @@ public class PlaneAgent : Agent
         float gentle = 1f - Mathf.Clamp01(planeController.touchdownImpact / 8f);
 
         planeController.AgentControl(pitchInput, turnInput, throttleInput);
+        bool patternFix = landing && Mathf.Abs(runway.InverseTransformPoint(Target.position).x) > 1f;
+        bool finalFix = Mathf.Abs(runway.InverseTransformPoint(Target.position).x) < 1f;
 
-        float distanceToTarget = Vector3.Distance(this.transform.localPosition, Target.localPosition);
+        float distanceToTarget = Vector3.Distance(transform.localPosition, Target.localPosition);
         if (planeController.agentCrashed)
         {
             SetReward(-1.0f);
@@ -162,17 +199,21 @@ public class PlaneAgent : Agent
 
             return;
         }
-        else if (distanceToTarget < 5f)
+        else if (distanceToTarget < (patternFix ? 10f : 5f))
         {
             if (landing)
             {
-                if (waypointIndex < 4)
+                if (waypointIndex < approach.Count - 1)
                 {
-                    AddReward(0.3f * (1f - Mathf.Clamp01(offCenter / 7f)));
+                    AddReward(finalFix ? 0.3f * (1f - Mathf.Clamp01(offCenter / 7f)) : 0.2f);
                     targetsThisEpisode++;
                     waypointIndex++;
-                    Target.position = ApproachPoint((4 - waypointIndex) * 20f);
+                    Target.position = approach[waypointIndex];
+
+                    // Reset new radius for new waypoint
                     previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
+                    allowedRadius = previousDistance + 60f;
+
                     Debug.Log($"waypoint {waypointIndex} reached");
                 }
             }
@@ -182,11 +223,45 @@ public class PlaneAgent : Agent
                 RecordOutcome(success: true);
                 targetsThisEpisode++;
                 LogEnd("SUCCESS");
-                SpawnNewTarget();
+                
+                
+                // Stage transition
+                if (takeoff)
+                {
+                    if (isChainedEpisode)
+                    {
+                        // Takeoff -> Cruise
+                        takeoff = false;
+                        SpawnNewTarget();
+                        Debug.Log("Transition to Cruise");
+                    }
+                    else
+                    {
+                        // Isolated run
+                        EndEpisode();
+                        return;
+                    }
+                }
+                else if (isChainedEpisode && targetsThisEpisode >= 10)
+                {
+                    // Cruise -> Landing
+                    landing = true;
+                    BuildApproach(transform.position);
+                    waypointIndex = 0;
+                    Target.position = approach[waypointIndex];
+
+                    previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
+                    allowedRadius = previousDistance + 60f;
+                    Debug.Log("Transition to landing");
+                }
+                else
+                {
+                    SpawnNewTarget();
+                }
             }
             return;
         }
-        else if (distanceToTarget > 200f)
+        else if (distanceToTarget > allowedRadius)
         {
             SetReward(-1.0f);
             RecordOutcome(flyaway: true);
@@ -194,7 +269,7 @@ public class PlaneAgent : Agent
             EndEpisode();
             return;
         }
-        else if (this.transform.localPosition.y < -2f)
+        else if (transform.localPosition.y < -2f)
         {
             SetReward(-1.0f);
             RecordOutcome(crash: true);
@@ -303,6 +378,9 @@ public class PlaneAgent : Agent
         
         firstTargetOfEpisode = false;
         previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
+
+        // Reset radius
+        allowedRadius = previousDistance + 60f;
     }
 
     void RecordOutcome(bool success = false, bool crash = false, bool flyaway = false, bool grass = false, bool timeout = false)
@@ -314,7 +392,73 @@ public class PlaneAgent : Agent
         stats.Add($"Custom/{mode}/Flyaway", flyaway ? 1f : 0f);
         stats.Add($"Custom/{mode}/Grass", grass ? 1f : 0f);
         stats.Add($"Custom/{mode}/Timeout", timeout ? 1f : 0f);
+
+        if (isChainedEpisode)
+        {
+            bool isFailure = crash || flyaway || grass || timeout;
+            
+            if (isFailure)
+            {
+                stats.Add("Custom/Mission/Completed", 0f);
+                missionRecorded = true;
+            }
+            else if (success && landing)
+            {
+                stats.Add("Custom/Mission/Completed", 1f);
+                missionRecorded = true;
+            }
+        }
         outcomeRecorded = true;
+    }
+
+    List<Vector3> approach = new List<Vector3>();
+
+    Vector3 Threshold() =>
+        runway.position - runway.forward * (runway.transform.localScale.z / 2f);
+
+    // distOut: metres before the threshold along the approach; lateral: metres right of centreline
+    Vector3 FixAt(float distOut, float lateral)
+    {
+        float alt = (lateral != 0f || distOut < 0f)
+            ? 25f                                // pattern legs: constant pattern altitude
+            : Mathf.Max(distOut, 0f) * slope;    // final: on the glideslope
+        return Threshold() - runway.forward * distOut
+            + runway.right * lateral + Vector3.up * alt;
+    }
+
+    void BuildApproach(Vector3 fromPos)
+    {
+        Vector3 rel  = fromPos - Threshold();
+        float outDist = Vector3.Dot(rel, -runway.forward); // >0 = approach side of threshold
+        float side    = Vector3.Dot(rel, runway.right);    // signed lateral offset
+        float s       = Mathf.Sign(side);
+
+        approach.Clear();
+
+        if (outDist > 50f && Mathf.Abs(side) < outDist * 0.6f)
+        {
+            // already in a ~±30° cone in front: straight-in
+            approach.Add(FixAt(150f, 0f));
+        }
+        else if (outDist > 50f)
+        {
+            // in front but off to the side: base entry on the plane's side
+            approach.Add(FixAt(150f, s * 100f));   // base point
+            approach.Add(FixAt(150f, 0f));         // turn final
+        }
+        else
+        {
+            // beside/behind the runway: downwind entry on the plane's side
+            approach.Add(FixAt(-40f, s * 100f));   // abeam the runway
+            approach.Add(FixAt(150f, s * 100f));   // downwind to base
+            approach.Add(FixAt(150f, 0f));         // turn final
+        }
+
+        // glideslope chain, unchanged
+        approach.Add(FixAt(60f, 0f));
+        approach.Add(FixAt(40f, 0f));
+        approach.Add(FixAt(20f, 0f));
+        approach.Add(FixAt(0f, 0f));
     }
 
     Vector3 ApproachPoint(float distOut)
@@ -339,26 +483,15 @@ public class PlaneAgent : Agent
         float ang = Random.Range(-coneDeg, coneDeg);
         Vector3 dir = Quaternion.AngleAxis(ang, Vector3.up) * -runway.forward;
 
-        Vector3 pos = threshold + dir * distOut + Vector3.up * (distOut * slope);
+        Vector3 pos = threshold + dir * distOut + Vector3.up * (distOut * slope) + Vector3.up * Random.Range(-15f, 15f);
 
-        Vector3 toFirst = ApproachPoint(80f) - pos;
+        BuildApproach(pos);
+        waypointIndex = 0;
+
+        Vector3 toFirst = approach[0] - pos;
         float yawDeg = Mathf.Atan2(toFirst.x, toFirst.z) * Mathf.Rad2Deg;
 
         planeController.RespawnAt(transform.parent.InverseTransformPoint(pos), false, yawDeg);
-    }
-
-    void GetStage()
-    {
-        if (!firstTargetOfEpisode)
-        {
-            takeoff = false;
-            return;
-        }
-        if (targetsThisEpisode >= 10)
-        {
-            landing = true;
-            return;
-        }
     }
 
     void LogEnd(string outcome)
@@ -374,7 +507,7 @@ public class PlaneAgent : Agent
     {
         GUI.Label(new Rect(10, 10, 500, 120),
             $"alt {transform.position.y:F2}   spd {planeController.currentSpeed:F1}   thr {planeController.throttle:F2}\n" +
-            $"touchedDown {planeController.touchedDown}   wp {waypointIndex}/4\n" +
+            $"touchedDown {planeController.touchedDown}   wp {waypointIndex}/{approach.Count - 1}\n" +
             $"distToTarget {Vector3.Distance(transform.position, Target.position):F1}   " +
             $"reward {GetCumulativeReward():F2}");
     }

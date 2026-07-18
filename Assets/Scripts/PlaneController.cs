@@ -276,8 +276,8 @@ public class PlaneController : MonoBehaviour
         currentSink = 0f;
         crashed = false;
         this.grounded = startGrounded;
-        currentSpeed = startGrounded ? 0f : 40f;
-        throttle = startGrounded ? 0f : 0.7f;
+        currentSpeed = startGrounded ? 0f : Random.Range(20f, 55f);
+        throttle = startGrounded ? 0f : Random.Range(0.2f, 1f);
         touchedDown = false;
         touchdownOnRunway = false;
         touchdownImpact = 0f;
