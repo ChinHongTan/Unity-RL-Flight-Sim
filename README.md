@@ -1,8 +1,6 @@
 # Unity-RL-Flight-Sim
 
-This repository provides code for a Unity ML-Agents flight sim where
-a PPO agent learns to fly fully autonomously from takeoff, cruising and
-chasing random targets to landing on the runway. This is made for me to both showcase and explore what game development is, and how reinforcement learning works on a practical level at the same time.
+This repository provides code for a Unity ML-Agents flight sim where a PPO agent learns to fly fully autonomously from takeoff, cruising and chasing random targets to landing on the runway. This is made for me to both showcase and explore what game development is, and how reinforcement learning works on a practical level at the same time.
 
 
 https://github.com/user-attachments/assets/c3c3adda-df77-4dbb-8125-5e95e0a76118
@@ -10,6 +8,7 @@ https://github.com/user-attachments/assets/c3c3adda-df77-4dbb-8125-5e95e0a76118
 
 ## Overview
 The project has four main parts: 
+
 - `Assets/Scripts/PlaneController.cs` for controlling the plane (WASD or arrow keys for navigation, left shift to increase throttle, left control to decrease throttle / brake). 
 - `Assets/Scripts/PlaneAgent.cs` for PPO agent related code
 - `Assets/Scripts/ApproachPlanner.cs` sets up a standard final approach to guide plane from anywhere on the map
@@ -31,46 +30,58 @@ A few years ago, I watched a video by Code Bullet titled "A.I. Learns to FLY", a
 ## Getting started
 ### Requirements
 You will need:
+
 - Unity 6000.5.2f1
 - Python 3.10.12
 - ML-Agents 4.0.3
+
 You can read ML-Agent's docs for more information or guides on installation: https://docs.unity3d.com/Packages/com.unity.ml-agents@4.0/manual/Installation.html
 
 ### Setup
 Clone this repo:
+
 ```sh
 git clone https://github.com/ChinHongTan/Unity-RL-Flight-Sim.git
 ```
+
 Then, open it in Unity. You will need to reimport the following third-party asset:
+
 - Alstra Infinite/Planes LowPoly (for plane model)
+
 Other assets are currently not used in training.
 
 ### Watch the trained agent
 In Assets/Scene folder, double click `Plane ML Scene` to open.
-The scene should be set up. Simply press Play button on top and
-you can enjoy watching AI flying a plane.
+
+The scene should be set up. Simply press Play button on top and you can enjoy watching AI flying a plane.
 
 ### Training from scratch
-On Unity's Hierarchy panel, right click `AreaSpawner` and
-choose `toggle active state` to activate it. Right click
-the `Training Area` prefab and choose `toggle active state` to deactivate it.
+On Unity's Hierarchy panel, right click `AreaSpawner` and choose `toggle active state` to activate it. Right click the `Training Area` prefab and choose `toggle active state` to deactivate it.
 
-The config file for ML-Agents is located at /config/planeagent_config.yaml
+The config file for ML-Agents is located at /config/planeagent_config.yaml.
+
 Trained models will be saved in /results/ folder.
+
 An example training command:
+
 ```sh
 mlagents-learn config/planeagent_config.yaml --run-id=<run-id>
 ```
 
-To warm start a new stage from previous checkpoint, add ```
+To warm start a new stage from previous checkpoint, add:
+
+```sh
 --initialize-from=<previous-run-id>
 ```
+
 at the end of command.
 
 More CLI options can be found in this guide:
+
 https://docs.unity3d.com/Packages/com.unity.ml-agents@4.0/manual/Training-ML-Agents.html
 
 To view tensorboard, use command
+
 ```sh
 tensorboard --logdir results
 ```
@@ -91,12 +102,15 @@ Inputs are defined in the `CollectObservations` function, including bearing of t
 `OnActionReceived` function apply actions from the agent, check for terminations, switch between phases, updates states and apply shaping rewards
 
 ## Results
+
 ![result](docs/result.png)
+
 A mission completion rate of 95.22% after 6 million steps of training
 
 
 ## Roadmap
 I'm new in both game development and machine learning, so I will be actively working on 2 directions: Adding better controller / map design for the game development part, and adding new skills for the agent to learn.
+
 - [x] Stage 1: waypoint navigation
 - [x] Stage 2: takeoff
 - [x] Stage 3: landing
