@@ -4,6 +4,10 @@ This repository provides code for a Unity ML-Agents flight sim where
 a PPO agent learns to fly fully autonomously from takeoff, cruising and
 chasing random targets to landing on the runway. This is made for me to both showcase and explore what game development is, and how reinforcement learning works on a practical level at the same time.
 
+
+https://github.com/user-attachments/assets/c3c3adda-df77-4dbb-8125-5e95e0a76118
+
+
 ## Overview
 The project has four main parts: 
 - `Assets/Scripts/PlaneController.cs` for controlling the plane (WASD or arrow keys for navigation, left shift to increase throttle, left control to decrease throttle / brake). 
