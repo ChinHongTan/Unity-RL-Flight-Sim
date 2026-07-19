@@ -36,6 +36,15 @@ public class PlaneAgent : Agent
     bool hitSpeed20;
     bool hitSpeed30;
 
+    const float FlyawayMargin = 60f;
+    const int TakeoffTimeout = 500;
+    const float MinAirSpawnAltitude = 10f;
+    const float ClimbOutDistance = 100f;
+    const int CruiseQuota = 10;
+    const float FullStopThreshold = 0.5f;
+    const float UndergroundLine = -2f;
+    const float FalloffWidth = 5f;
+
     public override void Initialize()
     {
         rBody = GetComponent<Rigidbody>();
@@ -94,7 +103,7 @@ public class PlaneAgent : Agent
             wasGrounded = true;
 
             // Set the first takeoff target
-            Target.position = planner.DeparturePoint(100f);
+            Target.position = planner.DeparturePoint(ClimbOutDistance);
         }
         else
         {
@@ -107,7 +116,7 @@ public class PlaneAgent : Agent
             {
                 phase = Phase.Takeoff;
                 planeController.RespawnAt(new Vector3(0f, 0f, 0f), true, 0);
-                Target.position = planner.DeparturePoint(100f);
+                Target.position = planner.DeparturePoint(ClimbOutDistance);
             }
             else if (r < groundedProb + landingProb)
             {
@@ -126,7 +135,7 @@ public class PlaneAgent : Agent
         }
 
         previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
-        allowedRadius = previousDistance + 60f;
+        allowedRadius = previousDistance + FlyawayMargin;
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -197,13 +206,13 @@ public class PlaneAgent : Agent
 
         Vector3 p = transform.localPosition + new Vector3(Mathf.Sin(angle) * dist, heightOffset, Mathf.Cos(angle) * dist); // Target position
 
-        p.y = Mathf.Clamp(p.y, 10f, 90f); // Set min and max height
+        p.y = Mathf.Clamp(p.y, MinAirSpawnAltitude, 90f); // Set min and max height
         Target.localPosition = p;
 
         previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
 
         // Reset radius
-        allowedRadius = previousDistance + 60f;
+        allowedRadius = previousDistance + FlyawayMargin;
     }
 
     void RecordOutcome(bool success = false, bool crash = false, bool flyaway = false, bool grass = false, bool timeout = false)
@@ -240,14 +249,15 @@ public class PlaneAgent : Agent
     {
         float coneDeg = Academy.Instance.EnvironmentParameters.GetWithDefault("spawn_cone", 45f);
         float distOut = Academy.Instance.EnvironmentParameters.GetWithDefault("spawn_dist", 200f);
+        float spawnHeightRange = 15f;
 
-        Vector3 threshold = runway.position - runway.forward * (runway.localScale.z / 2f); // The start of runway
+        Vector3 threshold = planner.Threshold(); // The start of runway
 
         float ang = Random.Range(-coneDeg, coneDeg);
         Vector3 dir = Quaternion.AngleAxis(ang, Vector3.up) * -runway.forward; // Spawn direction (left / right)
 
-        Vector3 pos = threshold + dir * distOut + Vector3.up * planner.GlideslopeAltitude(distOut) + Vector3.up * Random.Range(-15f, 15f); // Spawn position
-        pos.y = Mathf.Clamp(pos.y, 10f, 37f); // 200 x tan(6°) = max 21.06 base height, ±15
+        Vector3 pos = threshold + dir * distOut + Vector3.up * planner.GlideslopeAltitude(distOut) + Vector3.up * Random.Range(-spawnHeightRange, spawnHeightRange); // Spawn position
+        pos.y = Mathf.Max(pos.y, MinAirSpawnAltitude);
 
         approach = planner.BuildApproach(pos);
         waypointIndex = 0;
@@ -282,15 +292,15 @@ public class PlaneAgent : Agent
     /// </returns>
     bool CheckTerminations(float distanceToTarget, float offCenter)
     {
-        Vector3 flatfFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+        Vector3 flatFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
         Vector3 flatRwy = Vector3.ProjectOnPlane(runway.forward, Vector3.up).normalized;
 
-        float alignment = Vector3.Dot(flatfFwd, flatRwy);
-        float aligned = Mathf.Clamp01((alignment - 0.9f) / 0.1f);
-        float gentle = 1f - Mathf.Clamp01(planeController.touchdownImpact / 8f);
+        float alignment = Vector3.Dot(flatFwd, flatRwy);
+        float aligned = Mathf.Clamp01((alignment - 0.9f) / 0.1f); // window remap, 0 below 0.9 (26 degrees off)
+        float gentle = 1f - Mathf.Clamp01(planeController.touchdownImpact / PlaneController.MaxSafeSinkSpeed);
 
-        bool patternFix = phase == Phase.Landing && Mathf.Abs(runway.InverseTransformPoint(Target.position).x) > 1f;
-        bool finalFix = Mathf.Abs(runway.InverseTransformPoint(Target.position).x) < 1f;
+        bool patternFix = phase == Phase.Landing && Mathf.Abs(runway.InverseTransformPoint(Target.position).x) > 1f; // Target more than 10m off centerline
+        bool finalFix = Mathf.Abs(runway.InverseTransformPoint(Target.position).x) < 1f; // Target less than 10m off centerline
 
         // Crash
         if (planeController.agentCrashed)
@@ -323,7 +333,7 @@ public class PlaneAgent : Agent
             }
         }
         // Stop
-        else if (phase == Phase.Landing && touchdownHandled && planeController.currentSpeed < 0.5f)
+        else if (phase == Phase.Landing && touchdownHandled && planeController.currentSpeed < FullStopThreshold)
         {
             AddReward(1.0f + 0.5f * aligned);
             RecordOutcome(success: true);
@@ -339,14 +349,14 @@ public class PlaneAgent : Agent
             {
                 if (waypointIndex < approach.Count - 1)
                 {
-                    AddReward(finalFix ? 0.3f * (1f - Mathf.Clamp01(offCenter / 7f)) : 0.2f);
+                    AddReward(finalFix ? 0.3f * (1f - Mathf.Clamp01(offCenter / FalloffWidth)) : 0.2f);
                     targetsThisEpisode++;
                     waypointIndex++;
                     Target.position = approach[waypointIndex];
 
                     // Reset new radius for new waypoint
                     previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
-                    allowedRadius = previousDistance + 60f;
+                    allowedRadius = previousDistance + FlyawayMargin;
 
                     Debug.Log($"waypoint {waypointIndex} reached");
                 }
@@ -373,7 +383,7 @@ public class PlaneAgent : Agent
             return true;
         }
         // Underground
-        else if (transform.localPosition.y < -2f)
+        else if (transform.localPosition.y < UndergroundLine)
         {
             SetReward(-1.0f);
             RecordOutcome(crash: true);
@@ -382,7 +392,7 @@ public class PlaneAgent : Agent
             return true;
         }
         // Takeoff timeout
-        else if (phase == Phase.Takeoff && !airborneRewardGiven && decisionCount > 500)
+        else if (phase == Phase.Takeoff && !airborneRewardGiven && decisionCount > TakeoffTimeout)
         {
             SetReward(-1.0f);
             RecordOutcome(timeout: true);
@@ -412,7 +422,7 @@ public class PlaneAgent : Agent
                 return;
             }
         }
-        else if (isChainedEpisode && targetsThisEpisode >= 10)
+        else if (isChainedEpisode && targetsThisEpisode >= CruiseQuota)
         {
             // Cruise -> Landing
             phase = Phase.Landing;
@@ -421,7 +431,7 @@ public class PlaneAgent : Agent
             Target.position = approach[waypointIndex];
 
             previousDistance = Vector3.Distance(transform.localPosition, Target.localPosition);
-            allowedRadius = previousDistance + 60f;
+            allowedRadius = previousDistance + FlyawayMargin;
             Debug.Log("Transition to landing");
         }
         else
@@ -434,7 +444,7 @@ public class PlaneAgent : Agent
     {
         if (phase == Phase.Takeoff)
         {
-            AddReward(-0.005f * Mathf.Clamp01(offCenter / 5f)); // Keep center
+            AddReward(-0.005f * Mathf.Clamp01(offCenter / FalloffWidth)); // Keep center
             AddReward(-0.0002f); // Parking causes negative reward
             if (!hitSpeed10 && planeController.currentSpeed >= 10)
             {
@@ -451,7 +461,7 @@ public class PlaneAgent : Agent
                 AddReward(0.1f);
                 hitSpeed30 = true;
             }
-            if (wasGrounded && !planeController.grounded && !airborneRewardGiven && planeController.currentSpeed > planeController.stallSpeed * 0.3)
+            if (wasGrounded && !planeController.grounded && !airborneRewardGiven && planeController.currentSpeed > PlaneController.StallSpeed * 0.3)
             {
                 AddReward(0.3f);
                 airborneRewardGiven = true;

@@ -15,19 +15,21 @@ public class PlaneController : MonoBehaviour
     float currentSink;
 
     // Physics
-    readonly float pitchSpeed = 60f;
-    readonly float bankSpeed = 2f;
-    readonly float gravity = 10f;
-    readonly float maxBank = 60f;
-    readonly float turnRate = 1.5f;
-    [HideInInspector] public readonly float stallSpeed = 30f;
-    readonly float throttleAccel = 1f;      // was 0.5 — full throttle in 1s instead of 2s
-    readonly float enginePower = 6f;
-    readonly float drag = 0.1f;
-    readonly float stallPitchMultiplier = 15f;
-    readonly float brakeStrength = 15f;
-    readonly float rollingFriction = 1.5f;  // slow roll-to-a-stop when engine is off
-    readonly float respawnDelay = 2f;
+    const float PitchSpeed = 60f;
+    const float BankSpeed = 2f;
+    const float Gravity = 10f;
+    const float MaxBank = 60f;
+    const float TurnRate = 1.5f;
+    public const float StallSpeed = 30f;
+    const float ThrottleAccel = 1f;      // was 0.5 — full throttle in 1s instead of 2s
+    const float EnginePower = 6f;
+    const float Drag = 0.1f;
+    const float StallPitchMultiplier = 15f;
+    const float BrakeStrength = 15f;
+    const float RollingFriction = 1.5f;  // slow roll-to-a-stop when engine is off
+    const float RespawnDelay = 2f;
+    const float UprightThreshold = 0.7f;
+    public const float MaxSafeSinkSpeed = 8f;
 
 
     [Header("Inputs (keyboard by default)")]
@@ -40,6 +42,7 @@ public class PlaneController : MonoBehaviour
     [HideInInspector] public float touchdownImpact;
     [HideInInspector] public bool grounded;
     [HideInInspector] public bool agentCrashed;
+    
 
     [SerializeField] LayerMask groundMask = ~0;
 
@@ -103,7 +106,7 @@ public class PlaneController : MonoBehaviour
         float upright   = Vector3.Dot(transform.up, Vector3.up);
         bool  noseFirst = transform.forward.y < -0.5f;           // same -30° the old contact check implied
 
-        bool safe = upright > 0.7f && sinkSpeed < 8f && !noseFirst;
+        bool safe = upright > UprightThreshold && sinkSpeed < MaxSafeSinkSpeed && !noseFirst;
         if (safe)
         {
             if (!touchedDown)
@@ -128,20 +131,20 @@ public class PlaneController : MonoBehaviour
 
         // --- Stall: nose drops when too slow in the air ---
         float stallEffect = 0f;
-        if (currentSpeed / stallSpeed < 1f && !grounded)
+        if (currentSpeed / StallSpeed < 1f && !grounded)
         {
-            stallEffect = (1f - (currentSpeed / stallSpeed)) * stallPitchMultiplier * Time.deltaTime;
+            stallEffect = (1f - (currentSpeed / StallSpeed)) * StallPitchMultiplier * Time.deltaTime;
         }
 
-        float controlAuthority = Mathf.Clamp01(currentSpeed / stallSpeed);
+        float controlAuthority = Mathf.Clamp01(currentSpeed / StallSpeed);
 
         // --- Rotation ---
-        pitch += (pitchInput * controlAuthority * pitchSpeed * Time.deltaTime) + stallEffect;
+        pitch += (pitchInput * controlAuthority * PitchSpeed * Time.deltaTime) + stallEffect;
         pitch = Mathf.Clamp(pitch, -80f, 80f);
 
-        float targetRoll = -turnInput * maxBank;
-        roll = Mathf.LerpAngle(roll, targetRoll, Time.deltaTime * bankSpeed);
-        yaw += -roll * turnRate * Time.deltaTime;
+        float targetRoll = -turnInput * MaxBank;
+        roll = Mathf.LerpAngle(roll, targetRoll, Time.deltaTime * BankSpeed);
+        yaw += -roll * TurnRate * Time.deltaTime;
 
         rb.MoveRotation(Quaternion.Euler(pitch, yaw, roll));
 
@@ -149,25 +152,25 @@ public class PlaneController : MonoBehaviour
         // Only when airborne: on the ground the wheels carry the weight,
         // so pitching the nose up during the takeoff roll no longer bleeds speed.
         float slopeY = grounded ? 0f : transform.forward.y;
-        currentSpeed += -gravity * slopeY * Time.deltaTime;
+        currentSpeed += -Gravity * slopeY * Time.deltaTime;
         currentSpeed = Mathf.Max(currentSpeed, 0f);
 
         // --- Throttle and engine ---
         float minThrottle = grounded ? -1f : 0f;
-        throttle = Mathf.Clamp(throttle + throttleInput * throttleAccel * Time.deltaTime, minThrottle, 1.0f);
-        currentSpeed += (throttle * enginePower - drag * currentSpeed) * Time.deltaTime;
+        throttle = Mathf.Clamp(throttle + throttleInput * ThrottleAccel * Time.deltaTime, minThrottle, 1.0f);
+        currentSpeed += (throttle * EnginePower - Drag * currentSpeed) * Time.deltaTime;
 
         // --- Ground handling ---
         if (grounded)
         {
             pitch = Mathf.Clamp(pitch, -15f, 2f); // -15 = allowed rotation for takeoff, 2 = level
 
-            float brakeDecel = throttle < 0f ? -throttle * brakeStrength : 0f;
+            float brakeDecel = throttle < 0f ? -throttle * BrakeStrength : 0f;
 
             if (brakeDecel > 0f)
                 currentSpeed -= brakeDecel * Time.deltaTime;
             else if (throttle <= 0.01f)
-                currentSpeed -= rollingFriction * Time.deltaTime;
+                currentSpeed -= RollingFriction * Time.deltaTime;
 
             currentSpeed = Mathf.Max(currentSpeed, 0f);
         }
@@ -185,9 +188,9 @@ public class PlaneController : MonoBehaviour
         }
 
         // --- Sink: insufficient lift below stall speed ---
-        float sinkFactor = Mathf.Clamp01(1f - (currentSpeed / stallSpeed));
-        float targetSink = grounded ? 0f : gravity * sinkFactor;
-        currentSink = Mathf.MoveTowards(currentSink, targetSink, gravity * 2f * Time.deltaTime);
+        float sinkFactor = Mathf.Clamp01(1f - (currentSpeed / StallSpeed));
+        float targetSink = grounded ? 0f : Gravity * sinkFactor;
+        currentSink = Mathf.MoveTowards(currentSink, targetSink, Gravity * 2f * Time.deltaTime);
 
         Vector3 sinkVelocity = Vector3.down * currentSink;
 
@@ -204,7 +207,7 @@ public class PlaneController : MonoBehaviour
         float upright = Vector3.Dot(transform.up, Vector3.up);
         bool noseFirst = Vector3.Dot(transform.forward, -contact.normal) > 0.5f;
 
-        bool safeLanding = upright > 0.7f && impactSpeed < 8f && !noseFirst;
+        bool safeLanding = upright > UprightThreshold && impactSpeed < MaxSafeSinkSpeed && !noseFirst;
         if (safeLanding)
         {
             if (!touchedDown)
@@ -238,7 +241,7 @@ public class PlaneController : MonoBehaviour
         rb.isKinematic = true;
         foreach (var r in renderers) r.enabled = false;
 
-        yield return new WaitForSeconds(respawnDelay);
+        yield return new WaitForSeconds(RespawnDelay);
 
         Respawn();
 
