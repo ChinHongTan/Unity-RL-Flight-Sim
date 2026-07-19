@@ -7,8 +7,8 @@ chasing random targets to landing on the runway. This is made for me to both sho
 ## Overview
 The project has four main parts: 
 - `Assets/Scripts/PlaneController.cs` for controlling the plane (WASD or arrow keys for navigation, left shift to increase throttle, left control to decrease throttle / brake). 
-- `Assets/PlaneAgent.cs` for PPO agent related code
-- `Assets/ApproachPlanner.cs` sets up a standard final approach to guide plane from anywhere on the map
+- `Assets/Scripts/PlaneAgent.cs` for PPO agent related code
+- `Assets/Scripts/ApproachPlanner.cs` sets up a standard final approach to guide plane from anywhere on the map
 - `results` folder stores all the models (.onnx files) from previous failed attempts, and the current working model is `results/PlaneAgent-7/PlaneAgent.onnx`
 
 The other parts are mostly Unity generated stuff or assets that I downloaded from the Unity Asset Store.
